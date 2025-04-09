@@ -1,0 +1,21 @@
+# Test your FastAPI endpoints
+
+POST http://127.0.0.1:8000/
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/hello/User
+Accept: application/json
+
+###
+### Enviar datos a /encrypt_rc5
+POST http://127.0.0.1:8000/encrypt_rc5
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "usuario123",
+  "email": "correo@ejemplo.com",
+  "password": "secreto"
+}
