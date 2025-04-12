@@ -104,8 +104,21 @@ def rc5_decrypt(ciphertext_hex: str, password: str):
         plaintext += decrypt_block(block, S)
     return unpad(plaintext).decode()
 
-# === FastAPI ===
+# Algoritmo cesar
+def cesar_encrypt(text: str, shift: int):
+    result = ''
+    for char in text:
+        if char.isalpha():
+            base = ord('A') if char.isupper() else ord('a')
+            result += chr((ord(char) - base + shift) % 26 + base)
+        else:
+            result += char
+    return result
 
+def cesar_decrypt(text: str, shift: int):
+    return cesar_encrypt(text, -shift)
+
+# === Modelos Pydantic ===
 class EncryptRequest(BaseModel):
     username: str
     email: str
@@ -114,9 +127,18 @@ class EncryptRequest(BaseModel):
 class DecryptRequest(BaseModel):
     encrypted_password: str
 
+class CesarEncryptRequest(BaseModel):
+    text: str
+    shift: int
+
+class CesarDecryptRequest(BaseModel):
+    encrypted_text: str
+    shift: int
+
+# === Endpoints FastAPI ===
 @app.post("/encrypt_rc5")
 def encrypt_rc5(data: EncryptRequest):
-    encrypted = rc5_encrypt(data.password, "claveSecreta123")
+    encrypted = rc5_encrypt(data.password, SECRET_KEY)
     return {
         "username": data.username,
         "email": data.email,
@@ -130,3 +152,13 @@ def decrypt_rc5(data: DecryptRequest):
         return {"decrypted_password": decrypted}
     except Exception as e:
         return {"error": str(e)}
+
+@app.post("/encrypt_cesar")
+def encrypt_cesar(data: CesarEncryptRequest):
+    encrypted = cesar_encrypt(data.text, data.shift)
+    return {"encrypted_text": encrypted}
+
+@app.post("/decrypt_cesar")
+def decrypt_cesar(data: CesarDecryptRequest):
+    decrypted = cesar_decrypt(data.encrypted_text, data.shift)
+    return {"decrypted_text": decrypted}
