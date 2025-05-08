@@ -1,7 +1,30 @@
-from fastapi import FastAPI
 from pydantic import BaseModel
 from struct import pack, unpack
 import math
+import mysql.connector
+from fastapi import FastAPI
+from fastapi import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+# Middleware CORS para permitir solicitudes desde tu frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://paginaencriptar.com"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Conexión a MySQL
+def get_mysql_connection():
+    return mysql.connector.connect(
+        host="192.168.100.114",
+        user="root",
+        password="gabriel2005",
+        database="textos_encriptados"
+    )
+
 
 # Parámetros de RC5
 w = 32         # tamaño de palabra (bits)
@@ -14,7 +37,6 @@ Q = 0x9E3779B9
 # que es fundamental para el cifrado y descifrado de los bloques de datos.
 SECRET_KEY = "claveSecreta123" #clave simetrica
 
-app = FastAPI()
 
 # === Utilidades RC5 ===
 #Este metodo transforma la clave secreta del usuario en un arreglo de subclaves S,
@@ -119,13 +141,11 @@ def cesar_decrypt(text: str, shift: int):
     return cesar_encrypt(text, -shift)
 
 # === Modelos Pydantic ===
-class EncryptRequest(BaseModel):
-    username: str
-    email: str
-    password: str
+class EncryptTextRequest(BaseModel):
+    texto: str
 
-class DecryptRequest(BaseModel):
-    encrypted_password: str
+class DecryptTextRequest(BaseModel):
+    encrypted_text: str
 
 class CesarEncryptRequest(BaseModel):
     text: str
@@ -135,21 +155,18 @@ class CesarDecryptRequest(BaseModel):
     encrypted_text: str
     shift: int
 
+
 # === Endpoints FastAPI ===
 @app.post("/encrypt_rc5")
-def encrypt_rc5(data: EncryptRequest):
-    encrypted = rc5_encrypt(data.password, SECRET_KEY)
-    return {
-        "username": data.username,
-        "email": data.email,
-        "encrypted_password": encrypted
-    }
+def encrypt_rc5_text(data: EncryptTextRequest):
+    encrypted = rc5_encrypt(data.texto, SECRET_KEY)
+    return {"encrypted_text": encrypted}
 
 @app.post("/decrypt_rc5")
-def decrypt_rc5(data: DecryptRequest):
+def decrypt_rc5_text(data: DecryptTextRequest):
     try:
-        decrypted = rc5_decrypt(data.encrypted_password, SECRET_KEY)
-        return {"decrypted_password": decrypted}
+        decrypted = rc5_decrypt(data.encrypted_text, SECRET_KEY)
+        return {"decrypted_text": decrypted}
     except Exception as e:
         return {"error": str(e)}
 
@@ -162,3 +179,4 @@ def encrypt_cesar(data: CesarEncryptRequest):
 def decrypt_cesar(data: CesarDecryptRequest):
     decrypted = cesar_decrypt(data.encrypted_text, data.shift)
     return {"decrypted_text": decrypted}
+
