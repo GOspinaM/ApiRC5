@@ -5,6 +5,10 @@ import mysql.connector
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes, serialization
+import base64
+
 
 app = FastAPI()
 # Middleware CORS para permitir solicitudes desde tu frontend
@@ -154,6 +158,50 @@ class CesarEncryptRequest(BaseModel):
 class CesarDecryptRequest(BaseModel):
     encrypted_text: str
     shift: int
+
+# ---- ALgoritmo RSA ---- #
+
+# Generador de Keys RSA
+private_key = rsa.generate_private_key(
+    public_exponent=65537,
+    key_size=2048,
+)
+public_key = private_key.public_key()
+
+# Modelos Pydantic
+class RSAEncryptRequest(BaseModel):
+    text: str
+
+class RSADecryptRequest(BaseModel):
+    encrypted_text: str
+
+# Cifrador RSA
+@app.post("/encrypt_rsa")
+def encrypt_rsa(data: RSAEncryptRequest):
+    encrypted = public_key.encrypt(
+        data.text.encode(), # Aqui se convierte el texto en Bytes, porque RSA no trabaja con cadenas
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    encrypted_b64 = base64.b64encode(encrypted).decode() # Convierte el resultado de binario a base64 para enviarlo por JSON
+    return {"encrypted_text": encrypted_b64}
+
+# Descifrar RSA
+@app.post("/decrypt_rsa")
+def decrypt_rsa(data: RSADecryptRequest):
+    encrypted_bytes = base64.b64decode(data.encrypted_text)
+    decrypted = private_key.decrypt(
+        encrypted_bytes,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return {"decrypted_text": decrypted.decode()}
 
 
 # === Endpoints FastAPI ===
