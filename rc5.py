@@ -204,6 +204,59 @@ def decrypt_rsa(data: RSADecryptRequest):
     return {"decrypted_text": decrypted.decode()}
 
 
+# --- Algoritmo Transposición --- #
+
+# Transfomación de la palabra clave
+def get_colum_order(key: str):
+    return sorted(range(len(key)), key=lambda k: key[k]) # Ordena las letras de la clave en orden alfabético y retorna los indices
+
+# Cifrar Transposición
+def transposition_encrypt(text: str, key: int):
+    order = get_colum_order(key)
+    num_cols = len(key)
+    num_rows = math.ceil(len(text) / num_cols)
+    padded_text = text.ljust(num_cols * num_rows, 'X') # Rellena con X los espacios vacios
+
+
+    # Creamos la matriz
+    matrix = [padded_text[i:i+num_cols] for i in range(0, len(padded_text), num_cols)]
+
+    encrypted = ''
+    for col_idx in order:
+        for row in matrix:
+            encrypted += row[col_idx]
+    return encrypted
+
+def transposition_decrypt(encrypted_text: str, key: str):
+    order = get_colum_order(key)
+    num_cols = len(key)
+    num_rows = math.ceil(len(encrypted_text) / num_cols)
+
+    col_lenghts = [num_rows] * num_cols
+    cols = [''] * num_cols
+
+    index = 0
+    for idx in order:
+        cols[idx] = encrypted_text[index:index + col_lenghts[idx]]
+        index += col_lenghts[idx]
+
+    decrypted = ''
+    for i in range(num_rows):
+        for j in range(num_cols):
+            if i < len(cols[j]):
+                decrypted += cols[j][i]
+    return decrypted.rstrip('X') # Quita el relleno X
+
+# Modelos Pydantic
+class TranspositionEncryptRequest(BaseModel):
+    text: str
+    key: str
+
+class TranspositionDecryptRequest(BaseModel):
+    encrypted_text: str
+    key: str
+
+
 # === Endpoints FastAPI ===
 @app.post("/encrypt_rc5")
 def encrypt_rc5_text(data: EncryptTextRequest):
@@ -226,5 +279,15 @@ def encrypt_cesar(data: CesarEncryptRequest):
 @app.post("/decrypt_cesar")
 def decrypt_cesar(data: CesarDecryptRequest):
     decrypted = cesar_decrypt(data.encrypted_text, data.shift)
+    return {"decrypted_text": decrypted}
+
+@app.post("/encrypt_transposition")
+def encrypt_transposition(data: TranspositionEncryptRequest):
+    encrypted = transposition_encrypt(data.text, data.key)
+    return {"encrypted_text": encrypted}
+
+@app.post("/decrypt_transposition")
+def decrypt_transposition(data: TranspositionDecryptRequest):
+    decrypted = transposition_decrypt(data.encrypted_text, data.key)
     return {"decrypted_text": decrypted}
 
